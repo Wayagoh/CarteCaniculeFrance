@@ -27,9 +27,15 @@ log = logging.getLogger(__name__)
 
 # ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
-BASE_URL   = r"https://console.object.files.data.gouv.fr/browser/meteofrance/data%2Fvigilance%2Fmetropole%2F"
-CARTE_FILE = "CDP_CARTE_EXTERNE.json"     # vigilance levels by department
-TEXTE_FILE = "CDP_TEXTES_VIGILANCE.json"  # meteorologist bulletins (text)
+# BASE_URL   = r"https://console.object.files.data.gouv.fr/browser/meteofrance/data%2Fvigilance%2Fmetropole%2F"
+# CARTE_FILE = "CDP_CARTE_EXTERNE.json"     # vigilance levels by department
+# TEXTE_FILE = "CDP_TEXTES_VIGILANCE.json"  # meteorologist bulletins (text)
+
+# ─── CONSTANTS ────────────────────────────────────────────────────────────────
+
+BASE_URL   = "https://object.files.data.gouv.fr/meteofrance/data/vigilance/metropole"
+CARTE_FILE = "CDP_CARTE_EXTERNE.json"
+TEXTE_FILE = "CDP_TEXTES_VIGILANCE.json"
 
 # ─── HELPERS ──────────────────────────────────────────────────────────────────
 

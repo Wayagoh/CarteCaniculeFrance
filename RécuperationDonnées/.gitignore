@@ -1,0 +1,4 @@
+#Fichier csv créé à partir des téléchargements des fichiers json
+./historique_canicule.csv
+#Fichier d'arborescence des données vigilances météorologiques de Frnace Météo
+./data_vigilance_vigilance-hexagone-tree.json
