@@ -84,13 +84,29 @@ def get_nom(code: str) -> str:
 def compute_means(d_start: date, d_end: date) -> pd.DataFrame:
     n_days = (d_end - d_start).days + 1
     mask   = (df_global["date"] >= d_start) & (df_global["date"] <= d_end)
-    sums   = (df_global[mask]
-              .groupby("departement")["niveau"]
-              .sum()
-              .reindex(dept_codes, fill_value=0))
+    sub    = df_global[mask]
+
+    sums = (sub.groupby("departement")["niveau"]
+               .sum()
+               .reindex(dept_codes, fill_value=0))
+
+    # Jours par niveau pour chaque département
+    def count_level(level):
+        return (sub[sub["niveau"] == level]
+                .groupby("departement")["niveau"]
+                .count()
+                .reindex(dept_codes, fill_value=0))
+
+    j2 = count_level(2)
+    j3 = count_level(3)
+    j4 = count_level(4)
+
     return pd.DataFrame({
         "code":    dept_codes,
         "moyenne": sums.values / n_days,
+        "j_jaune":  j2.values,
+        "j_orange": j3.values,
+        "j_rouge":  j4.values,
     })
 
 
@@ -113,7 +129,7 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
         zmin=0, zmax=4,
         marker_line_width=0.6,
         marker_line_color="#6b7a8d",
-        marker_opacity=0.50,
+        marker_opacity=0.050,
         hovertemplate=(
             "<b>%{customdata[0]}</b> (%{location})<br>"
             "Moyenne : <b>%{z:.2f}</b> / 4<br><extra></extra>"
@@ -133,7 +149,9 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
     ))
 
     if selected_dept:
+        print(f"build_map — selected_dept='{selected_dept}', codes sample={means['code'].head().tolist()}")
         sel = means[means["code"] == selected_dept]
+        print(f"build_map — sel empty={sel.empty}")
         if not sel.empty:
             fig.add_trace(go.Choroplethmapbox(
                 geojson=geojson,
@@ -144,7 +162,7 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
                 zmin=0, zmax=4,
                 marker_line_width=2.5,
                 marker_line_color="#f0c040",
-                marker_opacity=0,
+                marker_opacity=0.1, #Le problème était ici
                 showscale=False,
                 hoverinfo="skip",
             ))
@@ -156,7 +174,7 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         clickmode="event+select",
-        uirevision="map",
+        uirevision=f"map-{selected_dept or 'none'}",
     )
     return fig
 
@@ -210,22 +228,42 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
     """Retourne les enfants du panneau classement."""
     means = compute_means(d_start, d_end).sort_values("moyenne", ascending=False)
 
+    def badge(count, color, label):
+        """Petite pastille 'N j' colorée."""
+        return html.Div(
+            style={
+                "display": "flex", "flexDirection": "column",
+                "alignItems": "center", "flexShrink": "0", "width": "28px",
+            },
+            children=[
+                html.Span(str(int(count)), style={
+                    "fontSize": "11px", "fontWeight": "500",
+                    "color": color if count > 0 else "#3a4255",
+                    "fontVariantNumeric": "tabular-nums", "lineHeight": "1.2",
+                }),
+                html.Span(label, style={
+                    "fontSize": "8px", "color": "#3a4255",
+                    "letterSpacing": "0.04em", "lineHeight": "1",
+                }),
+            ],
+        )
+
     rows = []
     for rank, (_, row) in enumerate(means.iterrows(), start=1):
-        moy      = row["moyenne"]
-        code     = row["code"]
-        nom      = get_nom(code)
-        niv_col  = NIVEAU_COLORS[min(4, round(moy))]
-        bar_pct  = int(moy / 4 * 100)
+        moy     = row["moyenne"]
+        code    = row["code"]
+        nom     = get_nom(code)
+        niv_col = NIVEAU_COLORS[min(4, round(moy))]
+        bar_pct = int(moy / 4 * 100)
 
         rows.append(html.Div(
             style={
-                "display": "flex", "alignItems": "center", "gap": "8px",
-                "padding": "5px 8px", "borderRadius": "5px",
+                "display": "flex", "alignItems": "center", "gap": "6px",
+                "padding": "4px 8px", "borderRadius": "5px",
                 "cursor": "pointer", "position": "relative", "overflow": "hidden",
             },
             children=[
-                # Barre de fond proportionnelle
+                # Barre de fond
                 html.Div(style={
                     "position": "absolute", "left": "0", "top": "0",
                     "width": f"{bar_pct}%", "height": "100%",
@@ -234,50 +272,62 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
                 # Rang
                 html.Span(str(rank), style={
                     "fontSize": "10px", "color": "#4a5568",
-                    "width": "22px", "textAlign": "right",
-                    "flexShrink": "0", "fontVariantNumeric": "tabular-nums",
+                    "width": "20px", "textAlign": "right", "flexShrink": "0",
+                    "fontVariantNumeric": "tabular-nums",
                 }),
-                # Pastille couleur
+                # Pastille
                 html.Div(style={
                     "width": "7px", "height": "7px", "borderRadius": "50%",
                     "backgroundColor": niv_col, "flexShrink": "0",
                 }),
                 # Nom
                 html.Span(nom, style={
-                    "fontSize": "12px", "color": "#c8cad6",
-                    "flex": "1", "overflow": "hidden",
-                    "textOverflow": "ellipsis", "whiteSpace": "nowrap",
+                    "fontSize": "12px", "color": "#c8cad6", "flex": "1",
+                    "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap",
                 }),
                 # Code
                 html.Span(f"({code})", style={
                     "fontSize": "10px", "color": "#4a5568", "flexShrink": "0",
                 }),
-                # Valeur
+                # Séparateur vertical léger
+                html.Div(style={
+                    "width": "1px", "height": "20px",
+                    "background": "rgba(255,255,255,0.07)", "flexShrink": "0",
+                }),
+                # Moyenne
                 html.Span(f"{moy:.2f}", style={
                     "fontSize": "12px", "fontWeight": "500",
                     "color": niv_col if moy > 0.01 else "#4a5568",
                     "flexShrink": "0", "fontVariantNumeric": "tabular-nums",
-                    "width": "34px", "textAlign": "right",
+                    "width": "32px", "textAlign": "right",
                 }),
+                # Jours J / O / R
+                badge(row["j_jaune"],  NIVEAU_COLORS[2], "jaune"),
+                badge(row["j_orange"], NIVEAU_COLORS[3], "org."),
+                badge(row["j_rouge"],  NIVEAU_COLORS[4], "rouge"),
             ],
         ))
 
+    # En-tête avec légende des colonnes
+    header = html.Div(
+        style={
+            "display": "flex", "alignItems": "center", "gap": "6px",
+            "padding": "0 8px 6px", "flexShrink": "0",
+        },
+        children=[
+            html.Span("CLASSEMENT",
+                      style={"fontSize": "9px", "letterSpacing": "0.10em",
+                             "color": "#8892a4", "flex": "1"}),
+            html.Span("moy.",  style={"fontSize": "9px", "color": "#4a5568",
+                                      "width": "32px", "textAlign": "right"}),
+            html.Span("🟡",    style={"fontSize": "9px", "width": "28px", "textAlign": "center"}),
+            html.Span("🟠",    style={"fontSize": "9px", "width": "28px", "textAlign": "center"}),
+            html.Span("🔴",    style={"fontSize": "9px", "width": "28px", "textAlign": "center"}),
+        ],
+    )
+
     return [
-        # En-tête classement
-        html.Div(
-            style={
-                "display": "flex", "alignItems": "center",
-                "justifyContent": "space-between",
-                "padding": "0 8px 6px", "flexShrink": "0",
-            },
-            children=[
-                html.Span("CLASSEMENT — DU + AU − CHAUD",
-                          style={"fontSize": "9px", "letterSpacing": "0.10em", "color": "#8892a4"}),
-                html.Span(f"{len(means)} depts",
-                          style={"fontSize": "10px", "color": "#4a5568"}),
-            ],
-        ),
-        # Liste scrollable
+        header,
         html.Div(
             style={"overflowY": "auto", "flex": "1", "paddingRight": "4px"},
             children=rows,
@@ -511,12 +561,15 @@ app.layout = html.Div(
         ),
 
         # ── Stores ─────────────────────────────────────────────
+        dcc.Store(id="click-source", data=None),  # "map" | "search" | None
         dcc.Store(id="selected-dept", data=None),
         dcc.Store(id="current-dates", data={
             "start": DATE_MIN.isoformat(), "end": DATE_MAX.isoformat(),
         }),
         # "none" | "dept" | "ranking"
         dcc.Store(id="view-mode", data="none"),
+        # True si la sélection vient de la barre de recherche (pas de surbrillance carte)
+        # dcc.Store(id="search-source", data=False),
     ],
 )
 
@@ -573,6 +626,7 @@ def update_period_label(dates):
 @app.callback(
     Output("selected-dept", "data"),
     Output("dept-search", "value"),
+    Output("click-source", "data"),
     Input("map-chart", "clickData"),
     Input("dept-search", "value"),
     State("selected-dept", "data"),
@@ -580,33 +634,54 @@ def update_period_label(dates):
 )
 def store_selected_dept(click_data, search_value, current_dept):
     triggered = ctx.triggered_id
+    print(f"store_selected_dept triggered by {triggered} — search_value={search_value}, current_dept={current_dept}")
 
     if triggered == "dept-search":
-        return (search_value, search_value) if search_value else (None, None)
+        # print(search_value)
+        if search_value:
+            # print(search_value)
+            return search_value, no_update, "search"
+        return None, no_update, None
 
     if triggered == "map-chart" and click_data:
         try:
             code = click_data["points"][0]["location"]
-            # Désélectionner si re-clic sur le même département
-            return (None, no_update) if code == current_dept else (code, no_update)
+            if code == current_dept:
+                print(code, current_dept)
+                # print("ok")
+                return None, no_update, None
+            # print(code)
+            return code, no_update, "map"
         except (KeyError, IndexError):
             pass
+    # print("pas ok")
+    return current_dept, no_update, no_update
 
-    return current_dept, no_update
 
-
-# ── View mode : "dept" / "ranking" / "none"
 @app.callback(
     Output("view-mode", "data"),
-    Input("selected-dept", "data"),
     Input("ranking-trigger", "n_clicks"),
+    Input("selected-dept", "data"),
+    Input("click-source", "data"),
     State("view-mode", "data"),
     prevent_initial_call=True,
 )
-def update_view_mode(selected_dept, _ranking_clicks, current_mode):
-    if ctx.triggered_id == "ranking-trigger":
-        return "none" if current_mode == "ranking" else "ranking"
-    return "dept" if selected_dept else "none"
+def update_view_mode(_ranking_clicks, selected_dept, click_source, current_mode):
+    triggered = ctx.triggered_id
+
+    if triggered == "ranking-trigger":
+        if not _ranking_clicks:
+            return current_mode
+        if current_mode == "ranking":
+            return "dept" if selected_dept else "none"
+        return "ranking"
+
+    if triggered in ("selected-dept", "click-source"):
+        if selected_dept:
+            return "dept"
+        return "none"
+
+    return current_mode
 
 
 # ── Carte
@@ -616,6 +691,7 @@ def update_view_mode(selected_dept, _ranking_clicks, current_mode):
     Input("selected-dept", "data"),
 )
 def update_map(dates, selected_dept):
+    # print(f"update_map triggered — selected_dept={selected_dept}")
     d_start = date.fromisoformat(dates["start"])
     d_end   = date.fromisoformat(dates["end"])
     return build_map(d_start, d_end, selected_dept)
@@ -691,7 +767,7 @@ def update_bottom_panel(view_mode, selected_dept, dates):
 @app.callback(
     Output("stats-panel", "children"),
     Input("current-dates", "data"),
-    Input("view-mode", "data"),
+    State("view-mode", "data"),
 )
 def update_stats(dates, view_mode):
     d_start = date.fromisoformat(dates["start"])
