@@ -9,7 +9,8 @@ puis ouvrir : http://127.0.0.1:8050
 
 import json
 from datetime import date, timedelta
-
+import sys
+import os
 import pandas as pd
 import plotly.graph_objects as go
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
@@ -17,8 +18,12 @@ from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 # ──────────────────────────────────────────────
 # 1. CONFIGURATION — adaptez ces chemins
 # ──────────────────────────────────────────────
-GEOJSON_PATH = "departements.geojson"
-CSV_PATH     = "RécuperationDonnées/historique_canicule.csv"
+def resource_path(relative_path):
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
+
+GEOJSON_PATH = resource_path("departements.geojson")
+CSV_PATH     = resource_path(os.path.join("RécuperationDonnées", "historique_canicule.csv"))
 
 DATE_MIN   = date(2023, 1, 1)
 DATE_MAX   = date(2025, 12, 31)
@@ -192,6 +197,12 @@ def build_dept_chart(dept_code: str, d_start: date, d_end: date) -> go.Figure:
     sub  = df_global[mask].set_index("date")["niveau"]
     nivs = [int(sub.get(d, 0)) for d in all_dates]
 
+    # Comptage par niveau
+    j_vert   = nivs.count(1)
+    j_jaune  = nivs.count(2)
+    j_orange = nivs.count(3)
+    j_rouge  = nivs.count(4)
+
     fig = go.Figure(go.Bar(
         x=list(all_dates), y=nivs,
         marker_color=[NIVEAU_COLORS[n] for n in nivs],
@@ -207,8 +218,14 @@ def build_dept_chart(dept_code: str, d_start: date, d_end: date) -> go.Figure:
     )
     fig.update_layout(
         title=dict(
-            text=f"<b>{dept_nom}</b> ({dept_code})",
-            font=dict(family="DM Serif Display", size=16, color="#e8eaf0"),
+            text=(
+                f"<b>{dept_nom}</b> ({dept_code})      "
+                f"<span style='font-size:12px; color:{NIVEAU_COLORS[1]}'>🟢 {j_vert}j</span>  "
+                f"<span style='font-size:12px; color:{NIVEAU_COLORS[2]}'>🟡 {j_jaune}j</span>  "
+                f"<span style='font-size:12px; color:{NIVEAU_COLORS[3]}'>🟠 {j_orange}j</span>  "
+                f"<span style='font-size:12px; color:{NIVEAU_COLORS[4]}'>🔴 {j_rouge}j</span>"
+            ),
+            font=dict(family="DM Serif Display", size=20, color="#e8eaf0"),
             x=0, xanchor="left", pad=dict(l=4, t=4),
         ),
         xaxis=dict(tickformat="%b %Y",
