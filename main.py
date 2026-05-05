@@ -129,7 +129,7 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
         zmin=0, zmax=4,
         marker_line_width=0.6,
         marker_line_color="#6b7a8d",
-        marker_opacity=0.050,
+        marker_opacity=0.20,
         hovertemplate=(
             "<b>%{customdata[0]}</b> (%{location})<br>"
             "Moyenne : <b>%{z:.2f}</b> / 4<br><extra></extra>"
@@ -145,6 +145,8 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
             bordercolor="rgba(255,255,255,0.08)",
             borderwidth=1,
             len=0.75, thickness=14, x=1.01,
+            y=0,  # ancrage en bas (défaut = 0.5 = centré)
+            yanchor="bottom",
         ),
     ))
 
@@ -162,7 +164,7 @@ def build_map(d_start: date, d_end: date, selected_dept=None) -> go.Figure:
                 zmin=0, zmax=4,
                 marker_line_width=2.5,
                 marker_line_color="#f0c040",
-                marker_opacity=0.1, #Le problème était ici
+                marker_opacity=0.5, #Le problème était ici
                 showscale=False,
                 hoverinfo="skip",
             ))
@@ -210,10 +212,10 @@ def build_dept_chart(dept_code: str, d_start: date, d_end: date) -> go.Figure:
             x=0, xanchor="left", pad=dict(l=4, t=4),
         ),
         xaxis=dict(tickformat="%b %Y",
-                   tickfont=dict(family="DM Sans", size=10, color="#8892a4"),
+                   tickfont=dict(family="DM Sans", size=14, color="#8892a4"),
                    showgrid=False, linecolor="rgba(255,255,255,0.1)"),
         yaxis=dict(range=[-0.2, 4.3], tickvals=[0, 1, 2, 3, 4],
-                   tickfont=dict(family="DM Sans", size=10, color="#8892a4"),
+                   tickfont=dict(family="DM Sans", size=25, color="#8892a4"),
                    gridcolor="rgba(255,255,255,0.06)", zeroline=False),
         bargap=0.15 if (d_end - d_start).days < 90 else 0.05,
         paper_bgcolor="rgba(0,0,0,0)",
@@ -237,12 +239,12 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
             },
             children=[
                 html.Span(str(int(count)), style={
-                    "fontSize": "11px", "fontWeight": "500",
+                    "fontSize": "14px", "fontWeight": "500",
                     "color": color if count > 0 else "#3a4255",
                     "fontVariantNumeric": "tabular-nums", "lineHeight": "1.2",
                 }),
                 html.Span(label, style={
-                    "fontSize": "8px", "color": "#3a4255",
+                    "fontSize": "11px", "color": "#3a4255",
                     "letterSpacing": "0.04em", "lineHeight": "1",
                 }),
             ],
@@ -271,7 +273,7 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
                 }),
                 # Rang
                 html.Span(str(rank), style={
-                    "fontSize": "10px", "color": "#4a5568",
+                    "fontSize": "18px", "color": "#4a5568",
                     "width": "20px", "textAlign": "right", "flexShrink": "0",
                     "fontVariantNumeric": "tabular-nums",
                 }),
@@ -282,12 +284,12 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
                 }),
                 # Nom
                 html.Span(nom, style={
-                    "fontSize": "12px", "color": "#c8cad6", "flex": "1",
+                    "fontSize": "18px", "color": "#c8cad6", "flex": "1",
                     "overflow": "hidden", "textOverflow": "ellipsis", "whiteSpace": "nowrap",
                 }),
                 # Code
                 html.Span(f"({code})", style={
-                    "fontSize": "10px", "color": "#4a5568", "flexShrink": "0",
+                    "fontSize": "18px", "color": "#4a5568", "flexShrink": "0",
                 }),
                 # Séparateur vertical léger
                 html.Div(style={
@@ -296,7 +298,7 @@ def build_ranking_panel(d_start: date, d_end: date) -> list:
                 }),
                 # Moyenne
                 html.Span(f"{moy:.2f}", style={
-                    "fontSize": "12px", "fontWeight": "500",
+                    "fontSize": "18px", "fontWeight": "500",
                     "color": niv_col if moy > 0.01 else "#4a5568",
                     "flexShrink": "0", "fontVariantNumeric": "tabular-nums",
                     "width": "32px", "textAlign": "right",
@@ -478,14 +480,14 @@ app.layout = html.Div(
                                               style={"fontSize": "9px", "letterSpacing": "0.12em",
                                                      "color": "#8892a4"}),
                                     html.Span(id="slider-period-label",
-                                              style={"fontSize": "10px", "color": "#f0c040"}),
+                                              style={"fontSize": "15px", "color": "#f0c040"}),
                                 ],
                             ),
                             dcc.RangeSlider(
                                 id="week-slider", min=0, max=TOTAL_DAYS,
                                 step=7, value=[0, TOTAL_DAYS],
                                 marks=slider_marks, allowCross=False,
-                                tooltip={"placement": "bottom", "always_visible": False},
+                                # tooltip={"placement": "bottom", "always_visible": False},
                             ),
                         ]),
 
@@ -792,7 +794,7 @@ def update_stats(dates, view_mode):
             "transition": "background 0.2s, border 0.2s",
         }
         inner = [
-            html.Div(value, style={"fontSize": "20px",
+            html.Div(value, style={"fontSize": "25px",
                                    "fontFamily": "'DM Serif Display', serif",
                                    "color": "#f0c040", "lineHeight": "1.2"}),
             html.Div(label, style={"fontSize": "9px", "color": "#8892a4",
